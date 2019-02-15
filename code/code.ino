@@ -14,8 +14,10 @@
 #define mp3on 10
 #define torch 5
 #define torchs 2
+#define charger A3
+#define led 6
 #define battery A6
-#define chrg 4
+#define chrg 3
 
 #define OLED_ADDR   0x3C
 
@@ -24,7 +26,10 @@ Adafruit_SSD1306 display(-1);
 #if (SSD1306_LCDHEIGHT != 64)
 #error("Height incorrect, please fix Adafruit_SSD1306.h!");
 #endif
-
+int ledstate = LOW;
+const long interval = 1000;
+unsigned long previousMillis = 0;
+unsigned long curruntMillis;
 int mode;
 int modet;
 int freq;
@@ -32,17 +37,51 @@ float freqd;
 int freqB;
 int bat;
 float batv;
+float batv1;
 byte freqH, freqL;
 
 void setBatv(){
   bat = analogRead(battery);
-  Serial.print(bat);
-  batv = map(bat,736,1023,0,100);
-  display.setTextSize(2);
-  display.setTextColor(WHITE);
+  batv1 = bat*(5.0/1023);
+  Serial.println(batv1);
+  Serial.println(bat);
+  batv = map(bat,736,980,0,100);
+  
+  if (batv >= 100.00){
+  display.setTextSize(1);
+  display.setTextColor(WHITE,BLACK);
   display.setCursor(0,0);
-  display.print(batv, "%");
+  display.print(batv);
+  display.print("% CHARGE FULL\t");
   display.display();
+  digitalWrite(chrg, LOW);
+  }
+  if(batv1 < 100.00){
+  display.setTextSize(1);
+  display.setTextColor(WHITE,BLACK);
+  display.setCursor(0,0);
+  display.print(batv);
+  display.print("%\t");
+  display.display();
+  analogWrite(chrg,200);
+  }
+  if(batv1 <=20.000){
+    curruntMillis = millis();
+    if(curruntMillis - previousMillis >= interval){
+      
+      if (ledstate == LOW) {
+      ledstate = HIGH;
+    } else {
+      ledstate = LOW;
+    }
+
+    digitalWrite(led, ledstate);
+  }
+    }
+  if(analogRead(charger)>=300){
+    digitalWrite(led, HIGH);
+  }
+  
 }
 
 void setFrequency(){
@@ -87,7 +126,7 @@ void setInitialize(){
 void setDisplayfm(){
  display.clearDisplay();
  display.setTextSize(2);
- display.setTextColor(WHITE);
+ display.setTextColor(WHITE,BLACK);
  display.setCursor(20,30);
  display.print("FM:");
  display.print(freqd);
@@ -98,7 +137,7 @@ void setDisplaymp3(){
 
  display.clearDisplay();
  display.setTextSize(3);
- display.setTextColor(WHITE);
+ display.setTextColor(WHITE,BLACK);
  display.setCursor(20,30);
  display.print("MP3");
  display.display();
@@ -123,10 +162,10 @@ void setup(){
   digitalWrite(torch, LOW);
   mode = 2;
   modet = 0;
+  freq =  1023;
   display.begin(SSD1306_SWITCHCAPVCC, OLED_ADDR);
   display.clearDisplay();
   display.display();
-  display.clearDisplay();
   setBatv();
 }
  
@@ -134,11 +173,26 @@ void loop()
 
 {
   
+ while(mode == 2){
+  digitalWrite(ampon, LOW);
+  digitalWrite(fmon, LOW);
+  digitalWrite(mp3on, LOW);
+  display.clearDisplay();
+  display.display();
+  if(digitalRead(torchs) == LOW){
+  if(modet == 0){
+    analogWrite(torch, 150);
+    modet = 1;
+  }
+  else if(modet == 1){
+    digitalWrite(torch, LOW);
+    modet = 0;
+  }
+ }
  if(digitalRead(S1) == LOW){
-  Serial.println("1");
   mode = 0;
  }
- 
+}
  if(mode == 0){
 
  digitalWrite(mp3on, LOW);
@@ -147,7 +201,6 @@ void loop()
  delay(1000);
  setInitialize();
  delay(1000);
- freq =  1023;
  freqd = freq/10.0;
  setFrequency();
  setDisplayfm();
@@ -188,7 +241,7 @@ void loop()
     analogWrite(torch, 150);
     modet = 1;
   }
-  if(modet == 1){
+  else if(modet == 1){
     digitalWrite(torch, LOW);
     modet = 0;
   }
@@ -209,29 +262,20 @@ if(mode == 1){
 while(mode == 1){
   setBatv();
   if(digitalRead(S1) == LOW){
-  Serial.println("1");
-  mode = 0;
+  mode = 2;
+  display.clearDisplay();
+  delay(1000);
+  }
   if(digitalRead(torchs) == LOW){
   if(modet == 0){
     analogWrite(torch, 150);
     modet = 1;
   }
-  if(modet == 1){
+  else if(modet == 1){
     digitalWrite(torch, LOW);
     modet = 0;
   }
- }
  }
 }
-setBatv();
-if(digitalRead(torchs) == LOW){
-  if(modet == 0){
-    analogWrite(torch, 150);
-    modet = 1;
-  }
-  if(modet == 1){
-    digitalWrite(torch, LOW);
-    modet = 0;
-  }
- }
+ 
 }
